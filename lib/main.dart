@@ -1,9 +1,20 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:reminder_app/screen/widgets/utils.dart';
+import 'package:hive/hive.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:reminder_app/model/task_model.dart';
+import 'package:reminder_app/screen/widgets/loading.dart';
+import 'package:reminder_app/screen/widgets/toast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screen/home/home_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  Directory appDocDir = await getApplicationDocumentsDirectory();
+  Hive
+    ..init(appDocDir.path)
+    ..registerAdapter(TaskModelAdapter());
   runApp(MyApp());
 }
 
@@ -19,7 +30,7 @@ class MyApp extends StatelessWidget {
         builder: (context, snapshots) {
           print('${snapshots.connectionState}: ${snapshots.data}');
           if (snapshots.connectionState == ConnectionState.waiting) {
-            return CircularProgressIndicator();
+            return LoadingPage();
           }
           if (snapshots.data != null && snapshots.data) {
             return HomePage();

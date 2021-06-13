@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:hive/hive.dart';
+import 'package:reminder_app/model/task_model.dart';
 import 'package:reminder_app/screen/home/widget/home_empty.dart';
 import 'package:reminder_app/screen/home/widget/home_list.dart';
 
@@ -10,29 +12,49 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  final List<Map<String, dynamic>> _taskList = [];
+  Box boxTask;
+  List<int> keys = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: _taskList.isNotEmpty ? HomeList(items: _taskList) : HomeEmptyBody(),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: Color(0xFFFFB51C),
-        onPressed: () => _fabCLick(context),
-        child: Icon(
-          Icons.add,
-          color: Colors.black,
-        ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
+    return FutureBuilder(
+      future: _setUpHiveBox(),
+      builder: (_, snapshots) {
+        if (snapshots.data != null) {
+          keys = snapshots.data;
+        }
+        return Scaffold(
+          appBar: keys.isNotEmpty
+              ? AppBar(
+                  title: Text('Reminder'),
+                )
+              : null,
+          body: keys.isNotEmpty
+              ? HomeList(keys: keys, box: boxTask)
+              : HomeEmptyBody(),
+          floatingActionButton: FloatingActionButton(
+            backgroundColor: Color(0xFFFFB51C),
+            onPressed: () => _fabCLick(context),
+            child: Icon(
+              Icons.add,
+              color: Colors.black,
+            ),
+          ),
+          floatingActionButtonLocation:
+              FloatingActionButtonLocation.centerFloat,
+        );
+      },
     );
   }
 
   final TextEditingController _titleController = TextEditingController();
 
   final TextEditingController _descriptionController = TextEditingController();
-
-  final TextEditingController _priceController = TextEditingController();
 
   void _fabCLick(BuildContext context) async {
     // Navigator.of(context).push(MaterialPageRoute(builder: (con) {
@@ -41,10 +63,8 @@ class _HomePageState extends State<HomePage> {
     print('Before Dialog'); //1
 
     await showDialog(
-      barrierDismissible:false,
       context: context,
       builder: (_) {
-        print('Dialog'); //3
         final edgeInset = EdgeInsets.symmetric(
           horizontal: 24.0,
           vertical: 16.0,
@@ -68,11 +88,6 @@ class _HomePageState extends State<HomePage> {
                       controller: _descriptionController,
                       decoration: InputDecoration(labelText: 'Description'),
                     ),
-                    SizedBox(height: 16.0),
-                    TextField(
-                      controller: _priceController,
-                      decoration: InputDecoration(labelText: 'Price'),
-                    ),
                     SizedBox(height: 32.0),
                     ElevatedButton(
                       onPressed: () => _addReminder(context),
@@ -86,30 +101,20 @@ class _HomePageState extends State<HomePage> {
         );
       },
     );
-
-    print('After Dialog'); //2
     setState(() {});
   }
 
-  void _addReminder(BuildContext context) {
+  void _addReminder(BuildContext context) async {
     String _title = _titleController.text;
     String _description = _descriptionController.text;
-    double _price = double.parse(_priceController.text);
 
     _clearController();
 
-    // Map<String, dynamic> _map = Map();
-    // _map['title'] = _title;
-    // _map['content'] = _description;
-    // _map['price'] = _price;
-
-    Map<String, dynamic> _map = {
-      'title': _title,
-      'content': _description,
-      'price': _price
-    };
-
-    _taskList.add(_map);
+    TaskModel _taskModel = TaskModel(
+      title: _title,
+      description: _description,
+    );
+    await boxTask.add(_taskModel);
 
     Navigator.of(context).pop();
   }
@@ -117,6 +122,10 @@ class _HomePageState extends State<HomePage> {
   _clearController() {
     _titleController.clear();
     _descriptionController.clear();
-    _priceController.clear();
+  }
+
+  Future<List<int>> _setUpHiveBox() async {
+    boxTask = await Hive.openBox('task');
+    return boxTask.keys.cast<int>().toList();
   }
 }
